@@ -30,7 +30,7 @@ def matrix_factorization(R, K, steps=5000, alpha=0.0002, beta=0.02, threshold=0.
         error = get_error(R, P, Q, beta)
         if error < threshold:
             break
-    return P, Q
+    return P.T, Q
     
 class ReducedRankRegression:
     def __init__(self, n_components):
