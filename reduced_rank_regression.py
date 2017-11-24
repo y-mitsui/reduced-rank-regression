@@ -1,6 +1,8 @@
 from __future__ import print_function
 from sklearn.preprocessing import StandardScaler
 import numpy as np
+import sys
+import time
 
 def get_rating_error(r, p, q):
     return r - np.dot(p, q)
@@ -9,20 +11,17 @@ def get_error(R, P, Q, beta):
     error = 0.0
     for i in xrange(len(R)):
         for j in xrange(len(R[i])):
-            if R[i][j] == 0:
-                continue
             error += pow(get_rating_error(R[i][j], P[:,i], Q[:,j]), 2)
     error += beta/2.0 * (np.linalg.norm(P) + np.linalg.norm(Q))
     return error
 
-def matrix_factorization(R, K, steps=5000, alpha=0.0002, beta=0.02, threshold=0.001):
+def matrix_factorization(R, K, steps=1500, alpha=0.002, beta=0.02, threshold=0.001):
     P = np.random.rand(K, len(R))
     Q = np.random.rand(K, len(R[0]))
+    t1 = time.time()
     for step in xrange(steps):
         for i in xrange(len(R)):
             for j in xrange(len(R[i])):
-                if R[i][j] == 0:
-                    continue
                 err = get_rating_error(R[i][j], P[:, i], Q[:, j])
                 for k in xrange(K):
                     P[k][i] += alpha * (2 * err * Q[k][j])
@@ -30,11 +29,16 @@ def matrix_factorization(R, K, steps=5000, alpha=0.0002, beta=0.02, threshold=0.
         error = get_error(R, P, Q, beta)
         if error < threshold:
             break
+        
+        if (step + 1) % max(int(steps / 200), 1) == 0:
+            print("%d / %d %.4f (%.1fsec)"%(step + 1, steps, error, time.time() - t1))
+            t1 = time.time()
     return P.T, Q
     
 class ReducedRankRegression:
-    def __init__(self, n_components):
+    def __init__(self, n_components, mf_steps=100):
         self.n_components = n_components
+        self.mf_steps = mf_steps
         
     def fit(self, sample_X, sample_Y):
         sample_X = np.array(sample_X)
@@ -50,7 +54,7 @@ class ReducedRankRegression:
             cov_matrix += np.dot(vec_y.reshape(-1, 1), vec_x.reshape(1, -1))
         cov_matrix /= sample_X.shape[0]
         
-        self.W, self.H = matrix_factorization(cov_matrix, self.n_components)
+        self.W, self.H = matrix_factorization(cov_matrix, self.n_components, self.mf_steps)
     
     def fit_transform(self, sample_X, sample_Y):
         self.fit(sample_X, sample_Y)
